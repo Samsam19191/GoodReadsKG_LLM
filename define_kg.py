@@ -1,0 +1,101 @@
+import csv
+from neo4j_manager import Neo4jConnector
+import os
+from dotenv import load_dotenv
+
+
+class GraphCreator:
+    def __init__(self):
+        self.db = None
+
+    def connect_to_neo4j(self, uri, user, password):
+        self.db = Neo4jConnector(uri, user, password)
+
+    def generate_book_graph(self, filename):
+        if self.db is not None:
+            self.db.run_query("MATCH (n) DETACH DELETE n")
+            with open(f"processed_data/{filename}.csv", "r", encoding="utf-8") as file:
+                reader = csv.DictReader(file)
+                for row in reader:
+                    if not row["Name"]:
+                        continue
+                    # Create Book Node
+                    self.db.run_query(
+                        """
+                        MERGE (b:Book {id: $id})
+                        SET b.name = $name, b.rating = $rating, b.pagesNumber = $pages_number,
+                            b.publishYear = $publish_year, b.publisher = $publisher,
+                            b.language = $language
+                        """,
+                        {
+                            "id": row["Id"],
+                            "name": row["Name"],
+                            "rating": float(row["Rating"]) if row["Rating"] else None,
+                            "pages_number": (
+                                int(row["pagesNumber"]) if row["pagesNumber"] else None
+                            ),
+                            "publish_year": (
+                                int(row["PublishYear"]) if row["PublishYear"] else None
+                            ),
+                            "publisher": row["Publisher"],
+                            "language": row["Language"],
+                        },
+                    )
+
+                    # Create Author Node and Relationship
+                    authors = row["Authors"].split(";")
+                    for author in authors:
+                        self.db.run_query(
+                            """
+                            MERGE (a:Author {name: $author_name})
+                            MERGE (b:Book {id: $book_id})
+                            MERGE (b)-[:WRITTEN_BY]->(a)
+                            """,
+                            {
+                                "author_name": author.strip(),
+                                "book_id": row["Id"],
+                            },
+                        )
+        else:
+            print("Database is not connected")
+
+    def add_ratings_to_graph(self, filename):
+        if self.db is not None:
+            with open(f"processed_data/{filename}.csv", "r", encoding="utf-8") as file:
+                reader = csv.DictReader(file)
+                for row in reader:
+                    # Check if the book exists
+                    book_exists = self.db.run_query(
+                        "MATCH (b:Book {name: $book_name}) RETURN b",
+                        {"book_name": row["Name"]},
+                    )
+                    if not book_exists:
+                        continue
+
+                    # Create User Node
+                    self.db.run_query(
+                        """
+                        MERGE (u:User {id: $user_id})
+                        """,
+                        {"user_id": row["ID"]},
+                    )
+
+                    # Create REVIEWED_BY Relationship
+                    self.db.run_query(
+                        """
+                        MATCH (b:Book {name: $book_name})
+                        MATCH (u:User {id: $user_id})
+                        MERGE (u)-[:REVIEWED_BY {rating: $rating}]->(b)
+                        """,
+                        {
+                            "book_name": row["Name"],
+                            "user_id": row["ID"],
+                            "rating": row["Rating"],
+                        },
+                    )
+        else:
+            print("Database is not connected")
+
+    def disconnect_from_neo4j(self):
+        self.db.close()
+        self.db = None
