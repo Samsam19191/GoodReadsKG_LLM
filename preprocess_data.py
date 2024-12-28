@@ -46,6 +46,20 @@ class DataProcessor:
         if self.df is not None:
             # remove useless rows
             self.df = self.df[self.df["Name"] != "Rating"]
+
+            # Map qualitative ratings to numerical values
+            rating_map = {
+                "did not like it": 1,
+                "it was ok": 2,
+                "liked it": 3,
+                "really liked it": 4,
+                "it was amazing": 5,
+            }
+            self.df["NumericalRating"] = self.df["Rating"].map(rating_map)
+
+            # self.df = self.df[["ID"]]
+            # self.df.drop_duplicates(inplace=True)
+
         else:
             print("Dataframe is not loaded")
 

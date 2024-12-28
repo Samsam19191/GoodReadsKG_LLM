@@ -1,0 +1,4 @@
+neo4j==5.27.0
+openai==1.58.1
+pandas==2.2.3
+python-dotenv==1.0.1

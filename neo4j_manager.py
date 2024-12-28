@@ -1,6 +1,7 @@
 from neo4j import GraphDatabase
 import csv
 
+
 # Connect to Neo4j
 class Neo4jConnector:
     def __init__(self, uri, user, password):
