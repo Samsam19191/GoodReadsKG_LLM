@@ -1,7 +1,5 @@
 import csv
 from neo4j_manager import Neo4jConnector
-import os
-from dotenv import load_dotenv
 
 
 class GraphCreator:
@@ -62,42 +60,43 @@ class GraphCreator:
     def add_ratings_to_graph(self, filename):
         if self.db is not None:
             # delete existing relationships and users
-            self.db.run_query("MATCH (u:User)-[r:REVIEWED_BY]->() DELETE r, u")
-            # with open(f"processed_data/{filename}.csv", "r", encoding="utf-8") as file:
-            #     reader = csv.DictReader(file)
-            #     for row in reader:
-            #         # Check if the book exists
-            #         book_exists = self.db.run_query(
-            #             "MATCH (b:Book {name: $book_name}) RETURN b",
-            #             {"book_name": row["Name"]},
-            #         )
+            self.db.run_query("MATCH (u:User)<-[r:REVIEWED_BY]-() DELETE r, u")
+            self.db.run_query("MATCH (u:User) DELETE u")
+            with open(f"processed_data/{filename}.csv", "r", encoding="utf-8") as file:
+                reader = csv.DictReader(file)
+                for row in reader:
+                    # Check if the book exists
+                    book_exists = self.db.run_query(
+                        "MATCH (b:Book {name: $book_name}) RETURN b",
+                        {"book_name": row["Name"]},
+                        single=True,
+                    )
+                    print(book_exists)
+                    # Skip if book does not exist in db
+                    if not book_exists:
+                        continue
+                    # Create User Node
+                    self.db.run_query(
+                        """
+                        MERGE (u:User {id: $user_id})
+                        """,
+                        {"user_id": row["ID"]},
+                    )
 
-            #         # Skip if book does not exist in db
-            #         if not book_exists:
-            #             continue
-            #         print("____")
-            #         # Create User Node
-            #         self.db.run_query(
-            #             """
-            #             MERGE (u:User {id: $user_id})
-            #             """,
-            #             {"user_id": row["ID"]},
-            #         )
-
-            #         # Create REVIEWED_BY Relationship
-            #         self.db.run_query(
-            #             """
-            #             MATCH (b:Book {name: $book_name})
-            #             MATCH (u:User {id: $user_id})
-            #             MERGE (b)-[:REVIEWED_BY {rating: $rating}]->(u)
-            #             """,
-            #             {
-            #                 "book_name": row["Name"],
-            #                 "user_id": row["ID"],
-            #                 "rating": row["Rating"],
-            #                 "num_rating": row["NumericalRating"],
-            #             },
-            #         )
+                    # Create REVIEWED_BY Relationship
+                    self.db.run_query(
+                        """
+                        MATCH (b:Book {name: $book_name})
+                        MATCH (u:User {id: $user_id})
+                        MERGE (b)-[:REVIEWED_BY {rating: $rating, num_rating: $num_rating}]->(u)
+                        """,
+                        {
+                            "book_name": row["Name"],
+                            "user_id": row["ID"],
+                            "rating": row["Rating"],
+                            "num_rating": row["NumericalRating"],
+                        },
+                    )
         else:
             print("Database is not connected")
 
