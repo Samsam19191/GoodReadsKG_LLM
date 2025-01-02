@@ -15,6 +15,12 @@ class DataProcessor:
 
     def clean_book_data(self):
         if self.df is not None:
+            # Ensure 'Description' column exists; fill with "none" if missing
+            if "Description" not in self.df.columns:
+                self.df["Description"] = "None"
+            else:
+                # Fill missing values in the existing 'Description' column
+                self.df.fillna({"Description": "None"}, inplace=True)
             # only keep the columns we need
             columns_to_keep = [
                 "Id",
@@ -27,9 +33,11 @@ class DataProcessor:
                 "PublishDay",
                 "Publisher",
                 "Language",
+                "Description",
             ]
-            self.df = self.df[columns_to_keep]
-
+            self.df = self.df[
+                [col for col in columns_to_keep if col in self.df.columns]
+            ]
             # fill rows with missing values
             self.df.fillna(
                 {
@@ -56,9 +64,6 @@ class DataProcessor:
                 "it was amazing": 5,
             }
             self.df["NumericalRating"] = self.df["Rating"].map(rating_map)
-
-            # self.df = self.df[["ID"]]
-            # self.df.drop_duplicates(inplace=True)
 
         else:
             print("Dataframe is not loaded")

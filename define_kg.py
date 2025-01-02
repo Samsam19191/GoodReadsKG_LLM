@@ -21,9 +21,13 @@ class GraphCreator:
                     self.db.run_query(
                         """
                         MERGE (b:Book {id: $id})
-                        SET b.name = $name, b.rating = $rating, b.pagesNumber = $pages_number,
-                            b.publishYear = $publish_year, b.publisher = $publisher,
-                            b.language = $language
+                        SET b.name = $name, 
+                            b.rating = $rating, 
+                            b.pagesNumber = $pages_number,
+                            b.publishYear = $publish_year, 
+                            b.publisher = $publisher,
+                            b.language = $language,
+                            b.description = CASE WHEN $description = "None" THEN null ELSE $description END
                         """,
                         {
                             "id": row["Id"],
@@ -37,6 +41,7 @@ class GraphCreator:
                             ),
                             "publisher": row["Publisher"],
                             "language": row["Language"],
+                            "description": row.get("Description"),
                         },
                     )
 
@@ -54,6 +59,7 @@ class GraphCreator:
                                 "book_id": row["Id"],
                             },
                         )
+                    print(f"Added book '{row['Name']}' to the graph.")
         else:
             print("Database is not connected")
 
@@ -71,9 +77,9 @@ class GraphCreator:
                         {"book_name": row["Name"]},
                         single=True,
                     )
-                    print(book_exists)
                     # Skip if book does not exist in db
                     if not book_exists:
+                        print(f"Book '{row['Name']}' not found in the graph. Skipping.")
                         continue
                     # Create User Node
                     self.db.run_query(
@@ -97,6 +103,8 @@ class GraphCreator:
                             "num_rating": row["NumericalRating"],
                         },
                     )
+                    print(f"Added rating for book '{row['Name']}' to the graph.")
+
         else:
             print("Database is not connected")
 
